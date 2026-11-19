@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'auth_service.dart';
+
 // CRUD SERVICE
 class CrudService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -65,6 +67,22 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Firebase Diano'),
         centerTitle: true,
         backgroundColor: Colors.teal,
+        actions: [
+          IconButton(
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              try {
+                await AuthService().signOut();
+              } catch (error) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Sign out failed: $error')),
+                );
+              }
+            },
+          ),
+        ],
       ),
 
       // ADD BUTTON

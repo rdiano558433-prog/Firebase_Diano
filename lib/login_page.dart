@@ -10,7 +10,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  _LoginPageState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
@@ -18,6 +18,62 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailCtrl = TextEditingController();
   final TextEditingController passwordCtrl = TextEditingController();
   bool loading = false;
+  bool obscurePassword = true;
+
+  Future<void> forgotPassword() async {
+    showDialog(
+      context: context, 
+      builder: (context) => AlertDialog(
+        title: const Text("Forgot Password?"),
+        content: TextField(
+          controller: emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            labelText: "Email",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text("Cancel"),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+          ElevatedButton(
+            child: Text("Send Reset Link"),
+            onPressed: () async {
+              if (emailCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Please enter your email address."),
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await auth.resetPassword(emailCtrl.text.trim());
+                Navigator.pop(context);
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text("Password reset email sent. Check your inbox.")
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text("Failed to send password reset email.")
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      )
+    );
+  }
 
   @override
   void dispose() {
@@ -26,108 +82,116 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
+      appBar: AppBar(title: Text("Login")),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: emailCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Email",
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: passwordCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
                   labelText: "Password",
                   border: OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    }, 
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: forgotPassword,
+                  child: Text("Forgot Password?"),
+                ),
+              ),
+
+              SizedBox(height: 12),
               ElevatedButton(
                 child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Login"),
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : Text("Login with Email"),
                 onPressed: () async {
-                  if (emailCtrl.text.isEmpty || passwordCtrl.text.isEmpty) {
-                    return;
-                  }
                   setState(() => loading = true);
-
                   final user = await auth.signInWithEmail(
-                    emailCtrl.text,
-                    passwordCtrl.text,
-                  );
-
-                  if (!context.mounted) return;
+                    emailCtrl.text, passwordCtrl.text);
                   setState(() => loading = false);
 
-                  if (user != null) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HomePage()),
-                    );
+                  if (user != null){
+                    if (!user.emailVerified) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "Please verify your email before logging in.")),
+                      );
+                    } else {
+                      Navigator.pushReplacement(
+                        context, 
+                        MaterialPageRoute(builder: (_) => HomePage()),
+                        );
+                    }
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Login failed")),
+                      SnackBar(content: Text("Invalid email or password")),
                     );
                   }
                 },
               ),
-              const SizedBox(height: 12),
-              ElevatedButton(
+              SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('OR'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: Icon(Icons.login),
+                label: Text("Sign in with Google"),
                 onPressed: () async {
-                  if (loading) return;
                   setState(() => loading = true);
-                  try {
-                    final user = await auth.signInWithGoogle();
-                    if (!context.mounted) return;
-
-                    if (user != null) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HomePage()),
-                      );
-                    }
-                  } on PlatformException catch (error) {
-                    if (!context.mounted) return;
-                    final message =
-                        error.message?.contains('ApiException: 10') == true
-                        ? 'Google Sign-In is not configured for this Android app. Add its SHA-1 in Firebase Console and replace google-services.json.'
-                        : 'Google Sign-In failed: ${error.message ?? error.code}';
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(message)));
-                  } on FirebaseAuthException catch (error) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Google Sign-In failed: ${error.message ?? error.code}',
-                        ),
-                      ),
+                  final user = await auth.signInWithGoogle();
+                  setState(() => loading = false);
+                  if (user != null) {
+                    Navigator.pushReplacement(
+                      context, 
+                      MaterialPageRoute(builder: (_) => HomePage()),
                     );
-                  } finally {
-                    if (mounted) setState(() => loading = false);
                   }
                 },
-                child: const Text("Sign in with Google"),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextButton(
-                child: const Text("Don't have an account? Register"),
+                child: Text("Don't have an account? Register"),
                 onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterPage()),
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => RegisterPage()),
                   );
                 },
               ),
