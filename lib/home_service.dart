@@ -17,6 +17,7 @@ class CrudService {
     return _firestore.collection('items').add({
       'name': name,
       'quantity': quantity,
+      'isFavorite': false,
     });
   }
 
@@ -25,6 +26,12 @@ class CrudService {
     return _firestore.collection('items').doc(id).update({
       'name': name,
       'quantity': quantity,
+    });
+  }
+
+  Future<void> updateFavorite(String id, bool isFavorite) {
+    return _firestore.collection('items').doc(id).update({
+      'isFavorite': isFavorite,
     });
   }
 
@@ -48,6 +55,8 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController nameCtrl = TextEditingController();
 
   final TextEditingController qtyCtrl = TextEditingController();
+
+  bool _showFavoritesOnly = false;
 
   @override
   void dispose() {
@@ -117,65 +126,118 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: docs.length,
+          final visibleDocs = _showFavoritesOnly
+              ? docs.where((item) => item.data()['isFavorite'] == true).toList()
+              : docs;
 
-            itemBuilder: (context, index) {
-              final item = docs[index];
-
-              return Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: FilterChip(
+                  avatar: const Icon(Icons.favorite),
+                  label: const Text('Favorites only'),
+                  selected: _showFavoritesOnly,
+                  onSelected: (selected) {
+                    setState(() => _showFavoritesOnly = selected);
+                  },
                 ),
-                margin: const EdgeInsets.symmetric(vertical: 6),
+              ),
+              if (visibleDocs.isEmpty)
+                const Expanded(
+                  child: Center(child: Text('No favorite items yet.')),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: visibleDocs.length,
+                    itemBuilder: (context, index) {
+                      final item = visibleDocs[index];
+                      final isFavorite = item.data()['isFavorite'] == true;
 
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-
-                  // ITEM NAME
-                  title: Text(
-                    item.data()['name'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  // ITEM QUANTITY
-                  subtitle: Text(
-                    'Quantity: ${item.data()['quantity'] ?? 0}',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-
-                  // EDIT AND DELETE BUTTONS
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // EDIT
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.orange),
-                        onPressed: () {
-                          openEditDialog(context, item);
-                        },
-                      ),
-
-                      // DELETE
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          _confirmDelete(context, item.id);
-                        },
-                      ),
-                    ],
+                      return Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          title: Text(
+                            item.data()['name'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Quantity: ${item.data()['quantity'] ?? 0}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: isFavorite
+                                    ? 'Remove from favorites'
+                                    : 'Add to favorites',
+                                icon: Icon(
+                                  isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isFavorite ? Colors.red : Colors.grey,
+                                ),
+                                onPressed: () async {
+                                  try {
+                                    await service.updateFavorite(
+                                      item.id,
+                                      !isFavorite,
+                                    );
+                                  } catch (error) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Could not update favorite: $error',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.orange,
+                                ),
+                                onPressed: () {
+                                  openEditDialog(context, item);
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () {
+                                  _confirmDelete(context, item.id);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
+            ],
           );
         },
       ),
