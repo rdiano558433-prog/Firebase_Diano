@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyB8QtMqYngsmvRvNEPsgniKZW1Ym4JSk2w',
-    appId: '1:932900268025:android:ae54b29a53b497970dbf28',
+    appId: '1:932900268025:android:faa2cda95c6da2ef0dbf28',
     messagingSenderId: '932900268025',
     projectId: 'mardiano-effff',
     storageBucket: 'mardiano-effff.firebasestorage.app',

@@ -173,17 +173,36 @@ class _LoginPageState extends State<LoginPage> {
               ElevatedButton.icon(
                 icon: Icon(Icons.login),
                 label: Text("Sign in with Google"),
-                onPressed: () async {
-                  setState(() => loading = true);
-                  final user = await auth.signInWithGoogle();
-                  setState(() => loading = false);
-                  if (user != null) {
-                    Navigator.pushReplacement(
-                      context, 
-                      MaterialPageRoute(builder: (_) => HomePage()),
-                    );
-                  }
-                },
+                onPressed: loading
+                    ? null
+                    : () async {
+                        setState(() => loading = true);
+                        try {
+                          final user = await auth.signInWithGoogle();
+                          if (!context.mounted) return;
+                          if (user != null) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => HomePage()),
+                            );
+                          }
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          final message =
+                              error is PlatformException &&
+                                  error.message?.contains('ApiException: 10') ==
+                                      true
+                              ? 'Google Sign-In is not configured for this app. Verify its Android package name and SHA-1 in Firebase.'
+                              : error is FirebaseAuthException
+                              ? 'Google Sign-In failed: ${error.message ?? error.code}'
+                              : 'Google Sign-In failed: $error';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(message)),
+                          );
+                        } finally {
+                          if (mounted) setState(() => loading = false);
+                        }
+                      },
               ),
               SizedBox(height: 12),
               TextButton(
