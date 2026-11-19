@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'auth_service.dart';
 import 'login_page.dart';
 
@@ -7,7 +6,7 @@ class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+    _RegisterPageState createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
@@ -15,13 +14,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController emailCtrl = TextEditingController();
   final TextEditingController passwordCtrl = TextEditingController();
   bool loading = false;
+  bool obscurePassword = true;
 
-  @override
-  void dispose() {
-    emailCtrl.dispose();
-    passwordCtrl.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,52 +32,51 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   labelText: "Email",
                   border: OutlineInputBorder(),
-                ), // InputDecoration
-              ), // TextField
+                ),
+              ),
               SizedBox(height: 12),
               TextField(
                 controller: passwordCtrl,
-                obscureText: true,
+                obscureText: obscurePassword,
                 decoration: InputDecoration(
                   labelText: "Password",
                   border: OutlineInputBorder(),
-                ), // InputDecoration
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    }, 
+                  ),
+                ),
               ),
               SizedBox(height: 12),
               ElevatedButton(
                 child: loading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text("Register"),
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : Text("Register"),
                 onPressed: () async {
-                  if (emailCtrl.text.isEmpty || passwordCtrl.text.isEmpty) {
-                    return;
-                  }
+                  if (emailCtrl.text.isEmpty || passwordCtrl.text.isEmpty) return;
                   setState(() => loading = true);
 
                   final user = await auth.registerWithEmail(
-                    emailCtrl.text,
-                    passwordCtrl.text,
-                  );
+                    emailCtrl.text, passwordCtrl.text);
 
-                  if (!context.mounted) return;
                   setState(() => loading = false);
 
                   if (user != null) {
-                    // Send verification email
                     if (!user.emailVerified) {
                       await user.sendEmailVerification();
-                      await auth.signOut();
-                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            "Verification email sent. Please check your inbox.",
-                          ),
-                        ), // Text // SnackBar
+                            "Verification email sent. Please check your inbox.")),
                       );
                     }
                     Navigator.pushReplacement(
-                      context,
+                      context, 
                       MaterialPageRoute(builder: (_) => LoginPage()),
                     );
                   } else {
@@ -92,21 +85,21 @@ class _RegisterPageState extends State<RegisterPage> {
                     );
                   }
                 },
-              ), // ElevatedButton
+              ),
               SizedBox(height: 12),
               TextButton(
                 child: Text("Already have an account? Login"),
                 onPressed: () {
                   Navigator.pushReplacement(
-                    context,
+                    context, 
                     MaterialPageRoute(builder: (_) => LoginPage()),
                   );
                 },
-              ), // TextButton
+              ),
             ],
-          ), // Column
-        ), // SingleChildScrollView
-      ), // Center
-    ); // Scaffold
+          ),
+        ),
+      ),
+    );
   }
 }
